@@ -1,0 +1,606 @@
+/* ==========================================================================
+   VaultAccess — View-Specific Styles
+   Login Screen, Security Interceptor Modal, Tiers Matrix, and Banking Workstations
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Authentication Overlay & Login Modal
+   -------------------------------------------------------------------------- */
+.login {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+  z-index: 10;
+}
+
+body.authed .login {
+  display: none;
+}
+
+.logincard {
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.logincard .brand {
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.logincard label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+
+.logincard input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13.5px;
+  transition: border-color 0.15s ease;
+}
+
+.logincard input:focus {
+  outline: 2px solid var(--accent);
+}
+
+.logincard .btn {
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px;
+}
+
+.loginerr {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin-top: 12px;
+  min-height: 16px;
+}
+
+.demo {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.demo code {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+}
+
+.loginnote {
+  font-size: 12.5px;
+  color: var(--warn);
+  background: rgba(235, 165, 63, .1);
+  border-radius: 8px;
+  padding: 9px 11px;
+  display: none;
+}
+
+.loginnote.show {
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   2. Security Interceptor (Access Denied Guard Overlay)
+   -------------------------------------------------------------------------- */
+.denied {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 28, .88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+}
+
+.denied.show {
+  display: flex;
+}
+
+.deniedcard {
+  max-width: 430px;
+  background: var(--panel);
+  border: 1px solid var(--danger);
+  border-radius: 14px;
+  padding: 26px;
+  box-shadow: 0 10px 30px rgba(240, 86, 111, 0.2);
+}
+
+.deniedcard h2 {
+  font-size: 17px;
+  color: var(--danger);
+  margin: 0 0 8px;
+}
+
+/* Legitimate High-Value Privilege Escalation Modal */
+.escalation-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 28, .88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 25;
+  backdrop-filter: blur(4px);
+}
+
+.escalation-modal.active {
+  display: flex;
+}
+
+.escalation-card {
+  width: 100%;
+  max-width: 450px;
+  background: var(--panel);
+  border: 1px solid var(--warn);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(235, 165, 63, 0.2);
+}
+
+.deniedcard p {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.55;
+  margin: 0 0 8px;
+}
+
+.deniedcard .small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.deniedcard .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   3. AD Privilege Tiers View
+   -------------------------------------------------------------------------- */
+.tiers {
+  display: grid;
+  gap: 10px;
+}
+
+.tier {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.tier.locked {
+  opacity: .55;
+}
+
+.tier .name {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.tier .desc {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.perms {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   4. Account Search & Profile Inspection
+   -------------------------------------------------------------------------- */
+.searchrow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.searchrow input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.result {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: none;
+}
+
+.result.show {
+  display: block;
+}
+
+.result h3 {
+  margin: 0 0 3px;
+  font-size: 14.5px;
+}
+
+.result .meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* --------------------------------------------------------------------------
+   5. Realistic Bank Workstation & Terminal UI
+   -------------------------------------------------------------------------- */
+.bank-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+@media (max-width: 860px) {
+  .bank-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bank-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.bank-panel h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bank-panel .panel-sub {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+
+.currency-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.currency-input input {
+  padding-left: 28px !important;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.form-group input, .form-group select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.form-group input:focus, .form-group select:focus {
+  outline: 2px solid var(--accent);
+}
+
+.tab-nav {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn.active {
+  background: var(--panel2);
+  color: var(--accent);
+}
+
+.customer-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 12px;
+}
+
+.balance-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ok);
+  font-family: 'JetBrains Mono', monospace;
+  margin: 6px 0 10px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Automated Security Lock Overlay (Screen Freeze)
+   -------------------------------------------------------------------------- */
+.terminal-freeze-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 17, 48, 0.95);
+  backdrop-filter: blur(8px);
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+body.authed .terminal-freeze-overlay.active {
+  display: flex;
+}
+
+body:not(.authed) .terminal-freeze-overlay {
+  display: none !important;
+}
+
+.freeze-card {
+  max-width: 580px;
+  width: 100%;
+  background: var(--panel);
+  border: 2px solid var(--danger);
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 0 50px rgba(240, 86, 111, 0.35);
+  animation: freezePulse 2s infinite ease-in-out;
+}
+
+@keyframes freezePulse {
+  0% { box-shadow: 0 0 25px rgba(240, 86, 111, 0.25); }
+  50% { box-shadow: 0 0 55px rgba(240, 86, 111, 0.5); }
+  100% { box-shadow: 0 0 25px rgba(240, 86, 111, 0.25); }
+}
+
+.freeze-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.freeze-icon {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.freeze-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--danger);
+  margin: 0;
+}
+
+.freeze-meta {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+
+/* --------------------------------------------------------------------------
+   7. Interactive DevTools / Privilege Escalation Hack Inspector Modal
+   -------------------------------------------------------------------------- */
+.hacker-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 20, 0.92);
+  backdrop-filter: blur(6px);
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.hacker-modal.active {
+  display: flex;
+}
+
+.hacker-window {
+  max-width: 720px;
+  width: 100%;
+  background: #111429;
+  border: 1px solid #3c4280;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 15px 45px rgba(0,0,0,0.6);
+}
+
+.hacker-titlebar {
+  background: #1a1e3b;
+  border-bottom: 1px solid #2d3363;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c5c9ee;
+}
+
+.hacker-body {
+  padding: 20px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.code-preview {
+  background: #090b16;
+  border: 1px solid #23274c;
+  border-radius: 8px;
+  padding: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #79d4b0;
+  white-space: pre-wrap;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.code-preview .tampered {
+  color: #f7768e;
+  font-weight: bold;
+  background: rgba(247, 118, 142, 0.15);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.server-response-box {
+  background: #0d0f20;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #ff9eaf;
+  margin-top: 14px;
+  display: none;
+}
+
+.server-response-box.show {
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   8. Infrastructure Node Health & Override Cards
+   -------------------------------------------------------------------------- */
+.infra-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.infra-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.infra-card .node-name {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.infra-card .node-ip {
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  margin-bottom: 8px;
+}
+
+.override-item {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.override-item .title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   9. Help Desk Console Layout & Diagnostics
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .hd-grid-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+

@@ -1,0 +1,161 @@
+﻿/* ==========================================================================
+   VaultAccess — Layout Architecture
+   Shell structure, Navigation Sidebar, Header Address Bar, and Main Canvas
+   ========================================================================== */
+
+/* Main application layout shell */
+.shell {
+  display: none;
+  min-height: 100vh;
+}
+
+body.authed .shell {
+  display: flex;
+}
+
+/* Sidebar navigation & user identity profile */
+.sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* Brand Identity */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 6px;
+}
+
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.brand-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Navigation items */
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.navbtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.navbtn:hover {
+  background: var(--panel2);
+  color: var(--text);
+}
+
+.navbtn.active {
+  background: var(--panel2);
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .5;
+  flex-shrink: 0;
+}
+
+/* Active Session Identity Box */
+.rolebox {
+  margin-top: auto;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.rolebox label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 7px;
+}
+
+.who {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.whorole {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Main Content Area */
+.main {
+  flex: 1;
+  padding: 28px 34px;
+  max-width: 980px;
+}
+
+/* Simulated Security Address Bar (URL-based access control monitor) */
+.addr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 6px 8px 6px 12px;
+  margin-bottom: 22px;
+}
+
+.addr input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  outline: none;
+  min-width: 0;
+}
+
+.addr .btn {
+  padding: 5px 12px;
+}

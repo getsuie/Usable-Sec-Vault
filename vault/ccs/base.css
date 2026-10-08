@@ -1,0 +1,96 @@
+﻿/* ==========================================================================
+   VaultAccess — Base Styles & Design Tokens
+   Security Console Theme & Typography Definitions
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Cyber Security Dark Theme */
+  --bg: #0e1130;
+  --panel: #171a3f;
+  --panel2: #1e224c;
+  --line: #2c3066;
+
+  /* Typography Colors */
+  --text: #e9eaf7;
+  --muted: #8d90bd;
+
+  /* Accent & Brand Colors */
+  --accent: #7c6cf0;
+  --accent2: #5a4bd6;
+
+  /* Security Status Indicators */
+  --ok: #37c281;       /* Authorized / Normal State */
+  --warn: #eba53f;     /* Step-up Required / Suspicious */
+  --danger: #f0566f;   /* Unauthorized / Locked / Tier Violation */
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #0e1130;
+    --panel: #171a3f;
+    --panel2: #1e224c;
+    --line: #2c3066;
+    --text: #e9eaf7;
+    --muted: #8d90bd;
+    --accent: #7c6cf0;
+    --accent2: #5a4bd6;
+  }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 3px;
+}
+
+.lede {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+  max-width: 60ch;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+section {
+  margin-bottom: 30px;
+}
+
+/* Accessibility: Screen-reader-only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
