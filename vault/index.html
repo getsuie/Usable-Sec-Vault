@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VaultAccess — Personnel Console</title>
+  <meta name="description" content="Role-Based Access Control and Privilege Tier Security Console for Active Directory environments.">
+
+  <!-- Typography: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ======================================================================
+       1. Authentication Screen
+       ====================================================================== -->
+  <div class="login" id="login" role="region" aria-label="Sign In Screen">
+    <div class="logincard">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <div class="brand-name">VaultAccess</div>
+          <div class="brand-sub">Personnel Console</div>
+        </div>
+      </div>
+
+      <div class="loginnote" id="loginNote" role="alert" aria-live="polite"></div>
+
+      <form id="loginForm" novalidate onsubmit="event.preventDefault();" aria-label="Staff Sign-In">
+        <label for="loginContext">Connection Context (Terminal Binding)</label>
+        <select id="loginContext" style="width:100%; padding:8px 10px; font-size:12.5px; background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:6px; margin-bottom:10px;">
+          <option value="branch">Branch Terminal #14 (Counter Terminal)</option>
+          <option value="helpdesk">Help Desk Station #04</option>
+          <option value="vpn">Remote Admin VPN (Encrypted Tunnel)</option>
+          <option value="soc">SOC Command Gateway</option>
+        </select>
+
+        <label for="user">Username</label>
+        <input id="user" name="username" autocomplete="username" placeholder="Enter username">
+
+        <label for="pass">Password</label>
+        <input id="pass" name="password" type="password" autocomplete="current-password" placeholder="Enter password">
+
+        <div id="loginMfaGroup" style="display:none; margin-top:10px;">
+          <label for="loginOtp">6-Digit Authenticator Token (Step-Up MFA)</label>
+          <input id="loginOtp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="Enter code (Demo OTP: 841920)">
+          <div style="font-size:11px; color:var(--warn); margin-top:3px;">
+            Tier 3/4 MFA Enforced. Simulated code: <strong>841920</strong> (demo only)
+          </div>
+        </div>
+
+        <button type="submit" class="btn" id="loginBtn" style="margin-top:12px;">Sign in</button>
+      </form>
+
+      <div class="loginerr" id="loginErr" role="alert" aria-live="assertive"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 6px;">
+        <label for="demoToggle" style="font-size:11.5px; color:var(--muted); margin:0; cursor:pointer;">Demo Credentials & Tips</label>
+        <input type="checkbox" id="demoToggle" checked style="cursor:pointer;" onchange="document.getElementById('demoBox').style.display = this.checked ? 'block' : 'none';">
+      </div>
+
+      <div class="demo" id="demoBox">
+        Staff accounts (password in brackets):<br>
+        <code>a.santos</code> (santos123) · <code>r.dizon</code> (dizon123)<br>
+        <code>m.torres</code> (torres123) · <code>k.lim</code> (lim123) · <code>l.garcia</code> (garcia123)<br>
+        <span style="font-size:11px; color:var(--accent);">Admin MFA OTP (Tier 3 & 4): <code>841920</code></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       2. Security Route Interceptor (Access Denied Guard)
+       ====================================================================== -->
+  <div class="denied" id="denied" role="alertdialog" aria-modal="true" aria-labelledby="deniedHeading" aria-describedby="deniedMsg">
+    <div class="deniedcard">
+      <div style="font-size:11px; font-weight:700; color:var(--danger); letter-spacing:.05em; text-transform:uppercase; margin-bottom:4px;">PRIVILEGE VIOLATION</div>
+      <h2 id="deniedHeading" style="margin:0 0 10px;">[ACCESS DENIED] Not Authorized</h2>
+      <div id="deniedMsg"></div>
+      <p class="small" style="margin-top:10px;">This attempt was logged in the Escalation Monitor and flagged for Security Admin review.</p>
+      <div class="actions" style="margin-top:16px;">
+        <button type="button" class="btn" id="reloginBtn" style="width:100%; background:var(--danger); font-weight:700;">Sign Out Terminal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       2b. Legitimate High-Value Privilege Escalation Modal (Tier 1 -> Tier 2)
+       ====================================================================== -->
+  <div class="escalation-modal" id="escalationModal" role="dialog" aria-modal="true" aria-labelledby="escalationTitle">
+    <div class="escalation-card">
+      <div class="escalation-header" style="margin-bottom:12px;">
+        <span class="tag warn" style="font-weight:700;">STEP-UP REQUIRED</span>
+        <h2 id="escalationTitle" style="color:var(--warn); margin:8px 0 2px; font-size:17px;">PRIVILEGE ESCALATION REQUIRED</h2>
+        <div style="color:var(--muted); font-size:12px;">Active Directory Authorization Gateway</div>
+      </div>
+      <div id="escalationDetails" class="escalation-body"></div>
+      <div class="actions" id="escalationActions" style="display:flex; gap:8px; margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       3. Automated Security Lock Overlay (Screen Freeze on Fraud/Mismatch)
+       ====================================================================== -->
+  <div class="terminal-freeze-overlay" id="terminalFreezeOverlay" role="alertdialog" aria-modal="true" aria-labelledby="freezeHeading" aria-describedby="freezeMsg">
+    <div class="freeze-card">
+      <div class="freeze-header">
+        <div class="freeze-icon" aria-hidden="true" style="font-size:14px; font-weight:800; border:1px solid var(--danger); padding:4px 8px; border-radius:4px;">ALERT</div>
+        <div>
+          <h2 class="freeze-title" id="freezeHeading">[ALERT] Security Lockout Activated</h2>
+          <div style="color:var(--muted); font-size:12px; margin-top:2px;">Automated Anomaly Detection Engine</div>
+        </div>
+      </div>
+
+      <p style="font-size:14px; font-weight:600; color:var(--text); margin:0 0 10px;" id="freezeMsg">
+        [ALERT] Account mismatch detected. Terminal locked. Security Team review required to unlock.
+      </p>
+
+      <div class="freeze-meta" id="freezeMeta"></div>
+
+      <div style="background:rgba(235,165,63,.08); border:1px solid var(--warn); border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:16px;">
+        <strong style="color:var(--warn);">Presentation Demonstration:</strong><br>
+        The teller is now locked out. Step 3 demonstrates how an insider attempts privilege escalation via DevTools/API payload manipulation. Step 4 demonstrates how the secure server catches and blocks the attack.
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button type="button" class="btn" style="background:var(--accent); font-size:13px; padding:11px;" onclick="VaultAccess.UI.openHackerInspectorModal()">
+          Step 3: Simulate Privilege Escalation Attack (DevTools / API Payload Tamper)
+        </button>
+        <button type="button" class="btn ghost" onclick="VaultAccess.App.handleLogout()">
+          Sign Out & Relinquish Terminal to Security Officer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       4. Interactive DevTools / Privilege Escalation Hack Inspector Modal
+       ====================================================================== -->
+  <div class="hacker-modal" id="hackerModal" role="dialog" aria-modal="true" aria-labelledby="hackerTitle">
+    <div class="hacker-window">
+      <div class="hacker-titlebar">
+        <span id="hackerTitle">Browser DevTools / Network API Tampering Console</span>
+        <button type="button" style="background:none; border:none; color:#c5c9ee; font-size:16px; cursor:pointer;" onclick="VaultAccess.UI.closeHackerInspectorModal()" aria-label="Close modal">X</button>
+      </div>
+      <div class="hacker-body">
+        <div style="font-size:12.5px; color:#c5c9ee; margin-bottom:8px; line-height:1.5;">
+          <strong>Step 3: The Privilege Escalation Attack (The Hack)</strong><br>
+          The teller opens developer tools to manipulate the HTTP request. They inject forged parameters (<code>isSecurityApproved: true</code> and <code>clientRoleOverride: "Security_Admin"</code>) attempting to clear their own fraud flag without Security Team authorization.
+        </div>
+
+        <div class="code-preview" id="hackerCodePreview"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:8px;">
+          <button type="button" class="btn" style="background:#f0566f; font-weight:700;" onclick="VaultAccess.UI.executeTamperedRequestAttack()">
+            Step 4: Send Tampered Request to Server (Test Prevention)
+          </button>
+          <button type="button" class="btn ghost" onclick="VaultAccess.UI.closeHackerInspectorModal()">Close Inspector</button>
+        </div>
+
+        <div class="server-response-box" id="serverResponseBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       5. Main Application Shell
+       ====================================================================== -->
+  <div class="shell">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <div class="brand-name">VaultAccess</div>
+          <div class="brand-sub">Personnel Console</div>
+        </div>
+      </div>
+
+      <nav id="nav" aria-label="Console Navigation">
+        <button type="button" class="navbtn active" data-view="dash">
+          <span class="dot" aria-hidden="true"></span>Dashboard
+        </button>
+        <button type="button" class="navbtn" data-view="bankwork">
+          <span class="dot" aria-hidden="true"></span>Banking Workstation
+        </button>
+        <button type="button" class="navbtn" data-view="helpdesk" style="display:none;">
+          <span class="dot" aria-hidden="true"></span>Help Desk Console
+        </button>
+        <button type="button" class="navbtn" data-view="tiers" style="display:none;">
+          <span class="dot" aria-hidden="true"></span>AD Privilege Tiers
+        </button>
+        <button type="button" class="navbtn" data-view="escalation" style="display:none;">
+          <span class="dot" aria-hidden="true"></span>Security Monitoring
+        </button>
+      </nav>
+
+      <!-- Authenticated Identity Profile -->
+      <div class="rolebox">
+        <label>Signed in as</label>
+        <div class="who" id="whoName"></div>
+        <div class="whorole" id="whoRole"></div>
+        <button type="button" class="btn ghost" id="logoutBtn" style="width:100%;margin-top:10px;">Sign out</button>
+      </div>
+    </aside>
+
+    <!-- Main Content Workspace -->
+    <main class="main" id="main-content">
+
+      <!-- Simulated Browser Address Bar (URL Tampering Monitor) -->
+      <div class="addr">
+        <span aria-hidden="true" style="font-size:11px; font-weight:700; color:var(--muted); padding:0 4px;">SECURE</span>
+        <label for="addr" class="sr-only">Console address URL</label>
+        <input id="addr" spellcheck="false" aria-label="Console address URL">
+        <button type="button" class="btn ghost" id="goBtn">Go</button>
+      </div>
+
+      <!-- View 1: Personnel Overview Dashboard -->
+      <section id="view-dash" aria-labelledby="dashHeading">
+        <h1 id="dashHeading">Personnel Overview</h1>
+        <p class="lede">Live posture across branch terminals and administrative connections. Access below is scoped to your current role.</p>
+
+        <div class="cards">
+          <div class="card">
+            <div class="num" id="statSessions">312</div>
+            <div class="lbl">Active staff sessions</div>
+          </div>
+          <div class="card">
+            <div class="num" style="color:var(--warn)" id="statAlerts">2</div>
+            <div class="lbl">Open escalation alerts</div>
+          </div>
+          <div class="card">
+            <div class="num">14</div>
+            <div class="lbl">Active branch terminals</div>
+          </div>
+          <div class="card">
+            <div class="num" id="statTier">—</div>
+            <div class="lbl">Your privilege tier</div>
+          </div>
+        </div>
+
+        <section>
+          <h2>Why this exists</h2>
+          <p class="sub" style="max-width:64ch;">
+            Flat AD permissions let one compromised or misused credential reach admin-level actions from any branch terminal or remote connection. This console enforces least-privilege by tier, and surfaces escalation attempts and customer-lockout context in plain language rather than raw system logs.
+          </p>
+        </section>
+      </section>
+
+      <!-- View 2: Role-Specific Banking Workstation -->
+      <section id="view-bankwork" style="display:none;" aria-labelledby="bankWorkHeading">
+        <h1 id="bankWorkHeading">Banking Workstation</h1>
+        <p class="lede">Live banking workspace scoped to your Active Directory privilege tier. Conduct authorized financial tasks or test security defense triggers.</p>
+        <div id="bankWorkContainer"></div>
+      </section>
+
+      <!-- View 2b: Help Desk Console (Tier 2-H) -->
+      <section id="view-helpdesk" style="display:none;" aria-labelledby="helpDeskHeading">
+        <!-- Rendered by js/ui/helpdesk.js -->
+      </section>
+
+      <!-- View 3: Active Directory Privilege Tiers (Security Team Only) -->
+      <section id="view-tiers" style="display:none;" aria-labelledby="tiersHeading">
+        <h1 id="tiersHeading">AD Privilege Tiers</h1>
+        <p class="lede">Access is bound to role and connection type, not just credentials. An action outside your tier is blocked and logged, not silently allowed.</p>
+        <div class="tiers" id="tierList"></div>
+      </section>
+
+      <!-- View 4: Security Monitoring (Security Team Only) -->
+      <section id="view-escalation" style="display:none;" aria-labelledby="escalationHeading">
+        <h1 id="escalationHeading">Security Monitoring</h1>
+        <p class="lede">Real-time log of security events, tier mismatches, connection anomalies, and unauthorized actions across all workstations.</p>
+
+        <div class="banner" id="denyBanner" role="status" aria-live="polite"></div>
+
+        <!-- Assessing Intent Triage Desk -->
+        <div id="socIncidentQueueContainer" style="margin-bottom:20px;"></div>
+
+        <h3 style="margin:20px 0 10px; font-size:14px;">Activity & Security Audit Log</h3>
+        <table aria-label="Security Monitoring Log">
+          <thead>
+            <tr>
+              <th>Time / ID</th>
+              <th>Source / Terminal</th>
+              <th>Staff Member</th>
+              <th>Attempted Action</th>
+              <th>Status</th>
+              <th style="text-align:right;">Details</th>
+            </tr>
+          </thead>
+          <tbody id="escLog"></tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ======================================================================
+       Modular JavaScript Architecture
+       ====================================================================== -->
+  <!-- 1. Configuration & Mock Schemas -->
+  <script src="js/config/roles.js"></script>
+  <script src="js/config/mock-data.js"></script>
+
+  <!-- 2. Core Security & Banking Services -->
+  <script src="js/core/auth.js"></script>
+  <script src="js/core/rbac.js"></script>
+  <script src="js/core/audit.js"></script>
+  <script src="js/core/banking.js"></script>
+  <script src="js/core/router.js"></script>
+
+  <!-- 3. UI Presentation & Orchestration -->
+  <script src="js/ui/helpdesk.js"></script>
+  <script src="js/ui/audit-view.js"></script>
+  <script src="js/ui/workstations.js"></script>
+  <script src="js/ui/renderers.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
