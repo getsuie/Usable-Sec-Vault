@@ -696,20 +696,35 @@ VaultAccess.UI = (function () {
           </button>
         </div>
 
-        <div style="background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:12px;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
-            <div>
-              <strong style="color:var(--text); font-size:14px;">M. Cruz (1002-9902)</strong>
-              <span class="tag danger" style="margin-left:8px;">Account Locked</span>
-              <div style="font-size:12px; color:var(--muted); margin-top:4px;">
-                Incident: Final identity challenge expired · Password sign-in disabled · Account frozen pending in-person verification
+        ${(() => {
+          const accounts = VaultAccess.Banking && VaultAccess.Banking.getAccounts ? VaultAccess.Banking.getAccounts() : VaultAccess.Config.BANK_ACCOUNTS;
+          const lockedList = Object.values(accounts).filter(a => a.status === 'Account Locked' || (a.status && a.status.includes('Protected')));
+
+          if (lockedList.length === 0) {
+            return `
+              <div style="background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:18px; margin-top:12px; text-align:center; color:var(--muted); font-size:12.5px;">
+                [NONE] No customer recovery reports pending. All customer accounts are in normal standing.
+              </div>
+            `;
+          }
+
+          return lockedList.map(a => `
+            <div style="background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                <div>
+                  <strong style="color:var(--text); font-size:14px;">${a.name} (${a.acctNumber})</strong>
+                  <span class="tag danger" style="margin-left:8px;">${a.status}</span>
+                  <div style="font-size:12px; color:var(--muted); margin-top:4px;">
+                    Incident: ${a.note || 'Suspicious activity report pending in-person identity verification'}
+                  </div>
+                </div>
+                <button type="button" class="btn" style="background:var(--ok); font-size:12px;" onclick="VaultAccess.Workstations.handleStaffAssistedRecovery('${a.acctNumber}')">
+                  Conduct In-Person Recovery (Verify PhilSys ID)
+                </button>
               </div>
             </div>
-            <button type="button" class="btn" style="background:var(--ok); font-size:12px;" onclick="VaultAccess.Workstations.handleStaffAssistedRecovery('1002-9902')">
-              Conduct In-Person Recovery (Verify PhilSys ID)
-            </button>
-          </div>
-        </div>
+          `).join('');
+        })()}
       </div>
 
       <!-- Branch Teller Limits & Activity Overview (Phase 8) -->
@@ -815,6 +830,84 @@ VaultAccess.UI = (function () {
 
 
   /**
+   * Returns true if the operator has any recorded privilege escalation breach
+   * (URL path tampering or blocked escalation incident). A breach overrides the
+   * sole-operator continuity rule so the Security Admin can still freeze the account.
+   * @param {string} username
+   * @returns {boolean}
+   */
+  function hasSecurityBreach(username) {
+    if (!username) return false;
+    const urlBreaches = (VaultAccess.Auth.getURLTamperIncidents() || []).some(i => i.username === username);
+    const socBreaches = (VaultAccess.Audit.getIncidents() || []).some(i => i.username === username && i.status !== 'UNCONFIRMED');
+    return urlBreaches || socBreaches;
+  }
+
+  /**
+   * Renders privilege escalation breach cases inside the Branch Terminal Lockout Remediation Desk.
+   * @returns {string} HTML
+   */
+  function renderEscalationBreachAlerts() {
+    const users = VaultAccess.Config.USERS;
+    const freezes = VaultAccess.Auth.getAccountFreezes();
+    const breaches = (VaultAccess.Audit.getIncidents() || []).filter(i => i.type === 'URL_TAMPER');
+    const pendingCount = breaches.filter(i => i.status === 'ASSESSING_INTENT').length;
+
+    const rows = breaches.map(inc => {
+      const u = users[inc.username] || { name: inc.username };
+      const isFrozen = !!freezes[inc.username];
+      const isPending = inc.status === 'ASSESSING_INTENT';
+      const statusTag = isPending
+        ? `<span class="tag warn">ASSESSING_INTENT</span>`
+        : (inc.status === 'CONFIRMED_MALICIOUS' ? `<span class="tag danger">CONFIRMED_MALICIOUS</span>` : `<span class="tag ok">UNCONFIRMED</span>`);
+
+      const freezeBtn = isFrozen
+        ? `<button type="button" class="btn" style="background:var(--ok); font-size:11px; padding:4px 8px;" onclick="VaultAccess.UI.handleUnfreezeAccount('${inc.username}')">Unfreeze</button>`
+        : `<button type="button" class="btn" style="background:var(--danger); font-size:11px; padding:4px 8px;" onclick="VaultAccess.UI.handleFreezeAccount('${inc.username}')">Freeze Account</button>`;
+
+      const resolveBtns = isPending ? `
+        <button type="button" class="btn" style="background:var(--danger); font-size:11px; padding:4px 8px;" onclick="VaultAccess.UI.handleResolveIncident('${inc.id}', 'CONFIRMED_MALICIOUS')">Confirm Malicious</button>
+        <button type="button" class="btn ghost" style="font-size:11px; padding:4px 8px;" onclick="VaultAccess.UI.handleResolveIncident('${inc.id}', 'UNCONFIRMED')">Unconfirmed</button>
+      ` : '';
+
+      return `
+        <tr style="border-bottom:1px solid var(--line);">
+          <td style="padding:8px;"><strong>${inc.id}</strong><br><span style="font-size:11px; color:var(--muted);">${inc.timestamp}</span></td>
+          <td style="padding:8px;"><strong>${u.name}</strong><br><span style="font-size:11px; color:var(--muted);">${inc.username} (${inc.operatorId}) · ${inc.terminal}</span></td>
+          <td style="padding:8px;"><strong style="color:var(--danger);">/${inc.attemptedPath || '?'}</strong><br><span style="font-size:11px; color:var(--muted);">Tier ${inc.actualTier} -> Tier ${inc.requestedTier} · ${inc.attempts || 1} attempt(s)</span></td>
+          <td style="padding:8px;">${statusTag}${isFrozen ? `<br><span class="tag danger" style="margin-top:4px;">FROZEN</span>` : ''}</td>
+          <td style="padding:8px; text-align:right;"><div style="display:flex; gap:4px; justify-content:flex-end; flex-wrap:wrap;">${freezeBtn}${resolveBtns}</div></td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div style="background:var(--bg); border:1px solid ${pendingCount > 0 ? 'var(--danger)' : 'var(--line)'}; border-radius:10px; padding:16px; margin-top:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <strong style="font-size:14px; color:var(--text);">Privilege Escalation Breach Alerts</strong>
+          <span class="tag ${pendingCount > 0 ? 'danger' : 'ok'}">${pendingCount} Active Breach${pendingCount === 1 ? '' : 'es'}</span>
+        </div>
+        ${breaches.length === 0
+          ? `<div style="font-size:12.5px; color:var(--ok);">[NORMAL] No privilege escalation attempts reported from branch terminals.</div>`
+          : `<div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--line); color:var(--muted);">
+                    <th style="padding:6px 8px;">Case / Time</th>
+                    <th style="padding:6px 8px;">Operator / Terminal</th>
+                    <th style="padding:6px 8px;">Attempted Path</th>
+                    <th style="padding:6px 8px;">Status</th>
+                    <th style="padding:6px 8px; text-align:right;">Remediation</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>`}
+      </div>
+    `;
+  }
+
+  /**
    * 4. SECURITY ADMIN WORKSTATION (Tier 4)
    */
   function renderSecAdminWorkstation(container) {
@@ -860,11 +953,11 @@ VaultAccess.UI = (function () {
               <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
                 <div style="width:140px;">
                   <label for="secUnlockIncidentId" style="font-size:10.5px; color:var(--muted); display:block; margin-bottom:2px;">Incident Ref ID</label>
-                  <input id="secUnlockIncidentId" style="width:100%; padding:6px 8px; font-size:12px; background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:6px;" value="INC-4011" placeholder="INC-####">
+                  <input id="secUnlockIncidentId" style="width:100%; padding:6px 8px; font-size:12px; background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:6px;" value="${lockState.incidentId || lockState.refCode || 'INC-4011'}" placeholder="INC-####">
                 </div>
                 <div style="flex:1; min-width:240px;">
                   <label for="secUnlockJustification" style="font-size:10.5px; color:var(--muted); display:block; margin-bottom:2px;">Forensic Justification (Min 15 chars)</label>
-                  <input id="secUnlockJustification" style="width:100%; padding:6px 8px; font-size:12px; background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:6px;" value="Lobby rush typo verified; customer identity confirmed in person." placeholder="Enter mandatory justification...">
+                  <input id="secUnlockJustification" style="width:100%; padding:6px 8px; font-size:12px; background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:6px;" value="${lockState.type === 'URL_TAMPER' ? 'Forensic triage complete; operator identity verified and terminal restored.' : 'Lobby rush typo verified; customer identity confirmed in person.'}" placeholder="Enter mandatory justification...">
                 </div>
               </div>
               <button type="button" class="btn" style="background:var(--ok);" onclick="VaultAccess.UI.handleSecAdminUnlockTerminal()">
@@ -877,6 +970,8 @@ VaultAccess.UI = (function () {
             </div>
           `}
         </div>
+
+        ${renderEscalationBreachAlerts()}
       </div>
 
       <div class="bank-panel" style="margin-bottom:18px;">
@@ -930,7 +1025,7 @@ VaultAccess.UI = (function () {
                         const u = users[username];
                         const isFrozen = !!freezes[username];
                         const userIncidents = incidents.filter(inc => inc.username === username);
-                        const isSoleMember = (headcountByRole[u.role] || 0) <= 1;
+                        const isSoleMember = (headcountByRole[u.role] || 0) <= 1 && !hasSecurityBreach(username);
 
                         return `
                           <tr style="border-bottom:1px solid var(--line);">
@@ -1396,7 +1491,7 @@ Content-Type: application/json
       // Count active operators in this role
       const primaryUsernames = Object.keys(users).filter(k => users[k].user === k);
       const sameRoleCount = primaryUsernames.filter(k => users[k].role === targetUser.role).length;
-      if (sameRoleCount <= 1) {
+      if (sameRoleCount <= 1 && !hasSecurityBreach(username)) {
         showModalNotification(
           `Operational Rule: Cannot freeze "${targetUser.name}". There is only 1 person assigned to the ${VaultAccess.Config.ROLES[targetUser.role].label} role. Operational continuity requires at least one active staff member.`,
           "Action Prohibited: Minimum Coverage Required",

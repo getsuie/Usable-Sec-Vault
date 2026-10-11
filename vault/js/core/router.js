@@ -41,11 +41,7 @@ VaultAccess.Router = (function () {
    */
   function route() {
     const targetPath = getPathFromHash();
-    const deniedModal = document.getElementById('denied');
-    if (deniedModal) {
-      deniedModal.style.display = 'none';
-      deniedModal.classList.remove('show');
-    }
+    hideDeniedModal();
 
     // Case 1: Unauthenticated user requests a route
     if (!VaultAccess.Auth.isAuthenticated()) {
@@ -68,8 +64,60 @@ VaultAccess.Router = (function () {
       return;
     }
 
-    // Case 4: Authorized Route -> Update simulated address bar
+    // Case 4: Account has an unresolved URL tampering incident under SOC review.
+    // The violation warning persists across sign-out / sign-in until the SOC resolves it.
+    const pendingTamper = getPendingTamperIncident(currentSession.user);
+    if (pendingTamper) {
+      showFlaggedAccountWarning(pendingTamper);
+      updateAddressBar(targetPath);
+      return;
+    }
+
+    // Case 5: Authorized Route -> Update simulated address bar
     updateAddressBar(targetPath);
+  }
+
+  /**
+   * Returns the newest pending (ASSESSING_INTENT) URL tampering incident for a user.
+   * @param {string} username
+   * @returns {object|null}
+   */
+  function getPendingTamperIncident(username) {
+    if (!username || !VaultAccess.Audit || !VaultAccess.Audit.getPendingIncidents) return null;
+    return VaultAccess.Audit.getPendingIncidents()
+      .find(inc => inc.type === "URL_TAMPER" && inc.username === username) || null;
+  }
+
+  /**
+   * Shows the access denied interceptor modal.
+   */
+  function showDeniedModal() {
+    const deniedModal = document.getElementById('denied');
+    if (deniedModal) {
+      if (deniedModal.style.removeProperty) {
+        deniedModal.style.removeProperty('display');
+      } else {
+        deniedModal.style.display = '';
+      }
+      deniedModal.classList.add('show');
+    }
+    const reloginBtn = document.getElementById('reloginBtn');
+    if (reloginBtn) reloginBtn.focus();
+  }
+
+  /**
+   * Hides the access denied interceptor modal.
+   */
+  function hideDeniedModal() {
+    const deniedModal = document.getElementById('denied');
+    if (deniedModal) {
+      if (deniedModal.style.removeProperty) {
+        deniedModal.style.removeProperty('display');
+      } else {
+        deniedModal.style.display = '';
+      }
+      deniedModal.classList.remove('show');
+    }
   }
 
   /**
@@ -109,32 +157,78 @@ VaultAccess.Router = (function () {
       : (session.name ? session.name.split(' ')[0] : (session.user || "teller"));
 
     // 1. Telemetry: Log security violation in Audit trail (Unauthorized URL escalation)
+    const operatorId = (VaultAccess.Config.USERS[session.user] && VaultAccess.Config.USERS[session.user].operatorId) || "teller_402";
+    const details = `Attempted access to /${attemptedPath} (Required Tier: ${targetRole.tier}, Actual Tier: ${currentRole.tier})`;
     const logEntry = {
       time: VaultAccess.Audit.getTimestamp(),
       src: srcTerminal,
       acct: userAccount,
       operatorName: userAccount,
-      operatorId: (VaultAccess.Config.USERS[session.user] && VaultAccess.Config.USERS[session.user].operatorId) || "teller_402",
-      action: `Attempted access to /${attemptedPath} (Required Tier: ${targetRole.tier}, Actual Tier: ${currentRole.tier})`,
-      result: "denied"
+      operatorId: operatorId,
+      resource: `URL Route /${attemptedPath} (${targetRole.label})`,
+      action: `[URL TAMPERING] ${details}`,
+      result: "denied",
+      resultCode: "ESCALATION_BLOCKED",
+      severity: "danger"
     };
     VaultAccess.Audit.logEvent(logEntry);
 
+    // 2. Report to SOC: open (or update) an ASSESSING_INTENT incident in the SOC Triage Desk
+    let socIncident = getPendingTamperIncident(session.user);
+    if (socIncident) {
+      socIncident.attempts = (socIncident.attempts || 1) + 1;
+      socIncident.timestamp = logEntry.time;
+      socIncident.attemptedPath = attemptedPath;
+      socIncident.resource = `URL Path Escalation: /${attemptedPath} (${targetRole.label})`;
+      socIncident.requestedTier = Math.max(socIncident.requestedTier || 0, targetRole.tier);
+      socIncident.details = `Direct URL path tampering detected. ${details}. Repeated attempts: ${socIncident.attempts}. Terminal locked pending SOC assessment.`;
+    } else {
+      socIncident = VaultAccess.Audit.createIncident({
+        type: "URL_TAMPER",
+        timestamp: logEntry.time,
+        operatorId: operatorId,
+        username: session.user || "unknown",
+        role: currentRole.label,
+        terminal: srcTerminal,
+        resource: `URL Path Escalation: /${attemptedPath} (${targetRole.label})`,
+        requestedTier: targetRole.tier,
+        actualTier: currentRole.tier,
+        attemptedPath: attemptedPath,
+        details: `Direct URL path tampering detected. ${details}. Terminal locked pending SOC assessment.`
+      });
+    }
+
     // Track detailed incident specifically for the Security Admin Workstation review & freeze controls
     VaultAccess.Auth.recordURLTamperIncident({
-      id: "INC-" + Math.floor(1000 + Math.random() * 9000),
+      id: socIncident.id,
       timestamp: logEntry.time,
       username: session.user || "unknown",
       roleLabel: currentRole.label,
       targetRole: targetRole.label,
       attemptedPath: attemptedPath,
-      details: `Attempted access to /${attemptedPath} (Required Tier: ${targetRole.tier}, Actual Tier: ${currentRole.tier})`
+      details: details
     });
 
-    // 2. Refresh UI views with newly logged event
+    // 2b. Lock Branch Terminal if breach originates from branch staff / terminal
+    if (VaultAccess.Banking && VaultAccess.Banking.getTerminalLockState) {
+      const lock = VaultAccess.Banking.getTerminalLockState();
+      lock.isLocked = true;
+      lock.reason = `Unauthorized URL privilege escalation breach: Operator attempted access to /${attemptedPath} (Required Tier: ${targetRole.tier}, Actual Tier: ${currentRole.tier}).`;
+      lock.lockedAt = logEntry.time;
+      lock.refCode = socIncident.id;
+      lock.incidentId = socIncident.id;
+      lock.type = "URL_TAMPER";
+      lock.escalationAttemptCount = (lock.escalationAttemptCount || 0) + 1;
+      lock.operatorId = operatorId;
+    }
+
+    // 3. Refresh UI views with newly logged event
     VaultAccess.UI.renderEscalationLog();
 
-    // 3. Render High-Visibility Security Interceptor Modal formatted cleanly
+    // 4. Render High-Visibility Security Interceptor Modal formatted cleanly
+    const deniedHeading = document.getElementById('deniedHeading');
+    if (deniedHeading) deniedHeading.textContent = "[ACCESS DENIED] Not Authorized";
+
     const deniedMsg = document.getElementById('deniedMsg');
     if (deniedMsg) {
       deniedMsg.innerHTML = `
@@ -143,9 +237,10 @@ VaultAccess.Router = (function () {
           <div><span style="color:var(--muted);">Current Role:</span> <strong style="color:var(--text);">${currentRole.label}</strong></div>
           <div><span style="color:var(--muted);">Current Tier:</span> <strong style="color:var(--accent);">Tier ${currentRole.tier}</strong></div>
           <div><span style="color:var(--muted);">Required Tier:</span> <strong style="color:var(--danger);">Tier ${targetRole.tier}</strong></div>
+          <div><span style="color:var(--muted);">SOC Case:</span> <strong style="color:var(--warn);">${socIncident.id} (ASSESSING_INTENT)</strong></div>
         </div>
         <div style="font-weight:700; color:var(--danger); font-size:13px; margin-bottom:4px;">ACCESS DENIED</div>
-        <div style="font-size:12px; color:var(--muted);">This attempt has been logged in the Escalation Monitor.</div>
+        <div style="font-size:12px; color:var(--muted);">This attempt has been logged in the Escalation Monitor and reported to the SOC team.</div>
       `;
     }
 
@@ -154,13 +249,36 @@ VaultAccess.Router = (function () {
       reloginBtn.dataset.target = attemptedPath;
     }
 
-    const deniedModal = document.getElementById('denied');
-    if (deniedModal) {
-      deniedModal.style.display = 'flex';
-      deniedModal.classList.add('show');
+    showDeniedModal();
+    updateAddressBar(attemptedPath);
+  }
+
+  /**
+   * Shows the persistent privilege-violation warning for an account that has an
+   * unresolved URL tampering incident (e.g. after signing out and back in).
+   * @param {object} incident - Pending SOC incident
+   */
+  function showFlaggedAccountWarning(incident) {
+    const deniedHeading = document.getElementById('deniedHeading');
+    if (deniedHeading) deniedHeading.textContent = "[ACCOUNT FLAGGED] Under SOC Review";
+
+    const deniedMsg = document.getElementById('deniedMsg');
+    if (deniedMsg) {
+      deniedMsg.innerHTML = `
+        <div style="background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.6; margin-bottom:10px;">
+          <div><span style="color:var(--muted);">SOC Case:</span> <strong style="color:var(--warn);">${incident.id}</strong></div>
+          <div><span style="color:var(--muted);">Operator:</span> <strong style="color:var(--text);">${incident.username} (${incident.operatorId})</strong></div>
+          <div><span style="color:var(--muted);">Violation:</span> <strong style="color:var(--danger);">${incident.resource}</strong></div>
+          <div><span style="color:var(--muted);">Attempts:</span> <strong style="color:var(--text);">${incident.attempts || 1}</strong></div>
+          <div><span style="color:var(--muted);">Last Attempt:</span> <strong style="color:var(--text);">${incident.timestamp}</strong></div>
+          <div><span style="color:var(--muted);">Status:</span> <strong style="color:var(--warn);">ASSESSING_INTENT</strong></div>
+        </div>
+        <div style="font-weight:700; color:var(--danger); font-size:13px; margin-bottom:4px;">PRIOR PRIVILEGE ESCALATION ATTEMPT DETECTED</div>
+        <div style="font-size:12px; color:var(--muted);">This account attempted unauthorized URL path escalation. Terminal access remains locked until a Security Admin resolves the SOC case.</div>
+      `;
     }
 
-    updateAddressBar(attemptedPath);
+    showDeniedModal();
   }
 
   /**
@@ -186,6 +304,8 @@ VaultAccess.Router = (function () {
     route,
     navigate,
     getPathFromHash,
+    hideDeniedModal,
+    getPendingTamperIncident,
     BASE_URL
   };
 })();

@@ -26,7 +26,9 @@ VaultAccess.Banking = (function () {
     whatToDo: "",
     lockedAt: null,
     flaggedAccount: null,
-    escalationAttemptCount: 0
+    escalationAttemptCount: 0,
+    incidentId: null,
+    type: null
   };
 
   // Graded anomaly strike counter for teller session (Phase 3)
@@ -494,7 +496,7 @@ VaultAccess.Banking = (function () {
 
     // Automatically queue an incident in the SOC triage queue
     if (VaultAccess.Audit.createIncident) {
-      VaultAccess.Audit.createIncident({
+      const inc = VaultAccess.Audit.createIncident({
         id: "INC-" + Math.floor(6000 + Math.random() * 3000),
         operatorId: terminalLockState.operatorId,
         username: "teller",
@@ -505,6 +507,7 @@ VaultAccess.Banking = (function () {
         actualTier: 1,
         details: `${reason} [Source: ${sourceAcct || 'N/A'}, Typed: ${invalidDestAcct || 'UNKNOWN'}, Ref: ${refCode}]`
       });
+      terminalLockState.incidentId = inc.id;
     }
   }
 
@@ -689,6 +692,8 @@ VaultAccess.Banking = (function () {
     terminalLockState.whatToDo = "";
     terminalLockState.lockedAt = null;
     terminalLockState.flaggedAccount = null;
+    terminalLockState.incidentId = null;
+    terminalLockState.type = null;
     tellerAnomalyStrikes = 0;
 
     // Log Maker-Checker audit entry
@@ -863,12 +868,23 @@ VaultAccess.Banking = (function () {
     };
   }
 
+  function getAccounts() {
+    return accounts;
+  }
+
+  function getAccount(acctNumber) {
+    if (!acctNumber) return null;
+    return accounts[acctNumber] || null;
+  }
+
   // Initialize data
   init();
 
   return {
     init,
     lookupCustomer,
+    getAccounts,
+    getAccount,
     processDeposit,
     processWithdrawal,
     processTransfer,

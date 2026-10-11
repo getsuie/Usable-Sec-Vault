@@ -16,11 +16,11 @@ VaultAccess.Config.BANK_ACCOUNTS = {
     name: "J. Reyes",
     accountType: "Savings Plus",
     balance: 145200.00,
-    status: "Protected Mode",
+    status: "Active / Verified",
     branch: "Makati Central",
-    tags: ["New Device Location", "Failed Step-Up Code"],
-    note: "Login from an unrecognized device failed OTP twice. No lockout yet — one more failed attempt routes to identity challenge.",
-    action: "Offer staff-assisted verification or advise customer to check registered mobile.",
+    tags: ["Verified Tier-1", "Standard Security"],
+    note: "Account in good standing.",
+    action: "Standard servicing.",
     recentTransactions: [
       { date: "2026-10-05", desc: "Payroll Direct Deposit", amount: 48500.00, type: "CR" },
       { date: "2026-10-04", desc: "ATM Withdrawal - BGC", amount: -5000.00, type: "DR" }
@@ -31,13 +31,13 @@ VaultAccess.Config.BANK_ACCOUNTS = {
     name: "M. Cruz",
     accountType: "Checking Premier",
     balance: 520000.00,
-    status: "Account Locked",
+    status: "Active / Verified",
     branch: "Quezon City Main",
-    tags: ["Failed Final Identity Challenge", "Fraud Review Flagged"],
-    note: "Final identity challenge expired. Password sign-in disabled; account frozen pending SOC clearance.",
-    action: "Verify customer in person with government ID and biometric scan, then lift lockout (Tier 4 required).",
+    tags: ["Verified Tier-1", "Standard Security"],
+    note: "Account in good standing.",
+    action: "Standard servicing.",
     recentTransactions: [
-      { date: "2026-10-03", desc: "Overseas Wire Transfer Attempt", amount: -210000.00, type: "DR" }
+      { date: "2026-10-03", desc: "Over-the-Counter Deposit", amount: 25000.00, type: "CR" }
     ]
   },
   "1003-8821": {

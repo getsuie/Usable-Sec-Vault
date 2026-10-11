@@ -126,6 +126,7 @@ VaultAccess.AuditView = (function () {
             <h3 style="margin:2px 0 0; font-size:15px;">Real-Time Security Activity Trail</h3>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn ghost" style="font-size:12px; border-color:var(--danger); color:var(--danger);" onclick="VaultAccess.AuditView.handleClearLog()">Clear Activity Log</button>
             ${isTier4 ? `
               <button type="button" class="btn ghost" style="font-size:12px;" onclick="VaultAccess.AuditView.handleExport('json')">Export JSON</button>
               <button type="button" class="btn ghost" style="font-size:12px;" onclick="VaultAccess.AuditView.handleExport('csv')">Export CSV</button>
@@ -173,7 +174,9 @@ VaultAccess.AuditView = (function () {
 
     // Render Table Rows (Cleaned 6 columns: Time/ID, Source/Terminal, Staff Member, Attempted Action, Status, Details)
     if (escLogTbody) {
-      if (filteredLogs.length === 0) {
+      if (allLogs.length === 0) {
+        escLogTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px 20px; color:var(--muted); font-size:12.5px;">No security events recorded yet. Run a simulation (such as URL path tampering, cash mismatch attack, high-value override, or Separation of Duties breach) to generate real-time audit logs.</td></tr>`;
+      } else if (filteredLogs.length === 0) {
         escLogTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--muted);">No monitoring entries match active filters.</td></tr>`;
       } else {
         escLogTbody.innerHTML = filteredLogs.map(e => {
@@ -258,6 +261,14 @@ VaultAccess.AuditView = (function () {
     }
   }
 
+  function handleClearLog() {
+    if (VaultAccess.Audit && VaultAccess.Audit.clearLogs) {
+      VaultAccess.Audit.clearLogs();
+    }
+    expandedRows = {};
+    render();
+  }
+
   return {
     render,
     setSeverityFilter,
@@ -266,6 +277,7 @@ VaultAccess.AuditView = (function () {
     toggleRowDetails,
     handleVerifyIntegrity,
     handleTamperDemo,
-    handleExport
+    handleExport,
+    handleClearLog
   };
 })();

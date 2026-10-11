@@ -388,6 +388,9 @@ VaultAccess.Audit = (function () {
       requestedTier: incData.requestedTier || 4,
       actualTier: incData.actualTier || 1,
       status: "ASSESSING_INTENT",
+      type: incData.type || "ESCALATION",
+      attemptedPath: incData.attemptedPath || null,
+      attempts: incData.attempts || 1,
       details: incData.details || "Unauthorized elevation attempt detected. Remote access blocked pending SOC assessment."
     };
 
@@ -531,11 +534,17 @@ VaultAccess.Audit = (function () {
     return incidents.filter(i => i.status === "ASSESSING_INTENT");
   }
 
+  function clearLogs() {
+    escalationLogs = [];
+    auditSequence = 1000;
+  }
+
   // Initialize on module load
   init();
 
   return {
     init,
+    clearLogs,
     logEvent,
     sha256,
     verifyLogIntegrity,

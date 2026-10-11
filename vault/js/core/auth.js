@@ -19,8 +19,19 @@ VaultAccess.Auth = (function () {
   // Rate limiting & backoff tracker: { [username]: { failures: number, cooldownUntil: number } }
   let loginFailures = {};
 
-  // Simulated 6-digit TOTP for demo purposes (clearly designated for demo)
-  const DEMO_MFA_OTP = "841920";
+  // Dynamic random 6-digit MFA OTP generated on demand
+  let activeMfaOtp = null;
+  let activeMfaUser = null;
+
+  function generateMfaOtp(user) {
+    activeMfaOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    activeMfaUser = user;
+    return activeMfaOtp;
+  }
+
+  function getActiveMfaOtp() {
+    return activeMfaOtp;
+  }
 
   // Account freeze registry with 24h expiration
   let accountFreezes = {};
@@ -165,15 +176,34 @@ VaultAccess.Auth = (function () {
     // Check 5: Step-Up MFA by Tier (Tier 3 IT Admin & Tier 4 Security Admin)
     if (userRole && userRole.tier >= 3) {
       const cleanOtp = (otpCode || "").trim();
-      if (!cleanOtp || cleanOtp !== DEMO_MFA_OTP) {
+
+      // If no OTP entered yet, or user changed, generate a random 6-digit OTP
+      if (!cleanOtp) {
+        const newOtp = generateMfaOtp(cleanUser);
         return {
           success: false,
           requireMFA: true,
-          demoOTP: DEMO_MFA_OTP,
+          otp: newOtp,
           message: `Step-Up Multi-Factor Authentication Required for Tier ${userRole.tier} (${userRole.label}). Please enter your 6-digit Authenticator code.`
         };
       }
+
+      // If OTP was provided, verify against the generated code
+      if (cleanUser !== activeMfaUser || cleanOtp !== activeMfaOtp) {
+        const newOtp = generateMfaOtp(cleanUser);
+        return {
+          success: false,
+          requireMFA: true,
+          otp: newOtp,
+          isMismatch: true,
+          message: `Invalid Authenticator code. A new 6-digit code has been generated. Please check your notification.`
+        };
+      }
     }
+
+    // Reset MFA state upon successful authentication
+    activeMfaOtp = null;
+    activeMfaUser = null;
 
     // Authentication Success: reset failure records
     delete loginFailures[cleanUser];
@@ -188,21 +218,6 @@ VaultAccess.Auth = (function () {
       isIdleLocked: false
     };
 
-    // Log successful login into audit log with first name
-    const firstName = (userRecord.name || cleanUser).split(' ')[0];
-    VaultAccess.Audit.logEvent({
-      time: VaultAccess.Audit.getTimestamp(),
-      src: userRole.terminalName || userRole.connection,
-      acct: firstName,
-      operatorName: firstName,
-      operatorId: userRecord.operatorId,
-      resource: "Authentication Gateway",
-      action: `[STAFF LOGIN] ${firstName} (${userRole.label}) authenticated successfully from [${context}] context.`,
-      result: "granted",
-      resultCode: "GRANTED",
-      severity: "info"
-    });
-
     return {
       success: true,
       session: session
@@ -213,18 +228,6 @@ VaultAccess.Auth = (function () {
    * Terminates active session.
    */
   function logout() {
-    if (session) {
-      VaultAccess.Audit.logEvent({
-        time: VaultAccess.Audit.getTimestamp(),
-        src: "Session Manager",
-        acct: session.user,
-        resource: "Active Session",
-        action: `[STAFF LOGOUT] Session closed for user "${session.user}". Security token revoked.`,
-        result: "granted",
-        resultCode: "GRANTED",
-        severity: "info"
-      });
-    }
     session = null;
     pendingRole = null;
   }
@@ -494,6 +497,7 @@ VaultAccess.Auth = (function () {
     fastForwardFreezeExpiry,
     recordURLTamperIncident,
     getURLTamperIncidents,
-    DEMO_MFA_OTP
+    generateMfaOtp,
+    getActiveMfaOtp
   };
 })();

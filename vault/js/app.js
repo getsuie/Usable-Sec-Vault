@@ -36,7 +36,14 @@ VaultAccess.App = (function () {
     if (!result.success) {
       if (result.requireMFA) {
         if (mfaGroup) mfaGroup.style.display = "block";
-        if (otpField) otpField.focus();
+        if (otpField) {
+          otpField.value = "";
+          otpField.focus();
+        }
+
+        if (result.otp) {
+          alert(`[MFA AUTHENTICATOR CHALLENGE]\n\nYour 6-digit Multi-Factor Authentication code is:\n\n${result.otp}\n\nPlease enter this code to complete sign-in.`);
+        }
       }
 
       if (errorField) {
@@ -97,7 +104,14 @@ VaultAccess.App = (function () {
     const hackerModal = document.getElementById('hackerModal');
     if (hackerModal) hackerModal.classList.remove('active');
     const deniedModal = document.getElementById('denied');
-    if (deniedModal) deniedModal.classList.remove('show');
+    if (deniedModal) {
+      deniedModal.classList.remove('show');
+      if (deniedModal.style.removeProperty) {
+        deniedModal.style.removeProperty('display');
+      } else {
+        deniedModal.style.display = '';
+      }
+    }
     const escModal = document.getElementById('escalationModal');
     if (escModal) escModal.classList.remove('active');
     const hdModal = document.getElementById('hdVerifyModal');

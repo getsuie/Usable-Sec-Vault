@@ -72,6 +72,18 @@ VaultAccess.Workstations = (function () {
     const reason = prompt("Enter suspicious activity report details for Supervisor & SOC:", "Customer presented conflicting ID documents and requested rapid cash withdrawal.");
     if (!reason) return;
 
+    const liveAcct = (VaultAccess.Banking && VaultAccess.Banking.getAccount)
+      ? VaultAccess.Banking.getAccount(acctNumber)
+      : VaultAccess.Config.BANK_ACCOUNTS[acctNumber];
+    if (liveAcct) {
+      liveAcct.status = "Account Locked";
+      liveAcct.note = `Teller reported suspicious activity: ${reason}`;
+    }
+    if (VaultAccess.Config.BANK_ACCOUNTS[acctNumber]) {
+      VaultAccess.Config.BANK_ACCOUNTS[acctNumber].status = "Account Locked";
+      VaultAccess.Config.BANK_ACCOUNTS[acctNumber].note = `Teller reported suspicious activity: ${reason}`;
+    }
+
     VaultAccess.Audit.logEvent({
       time: VaultAccess.Audit.getTimestamp(),
       src: "Branch Terminal #14",
@@ -97,6 +109,7 @@ VaultAccess.Workstations = (function () {
     }
 
     alert(`Incident logged: Suspicious activity report submitted to Branch Supervisor and SOC triage queue.`);
+    VaultAccess.UI.renderBankWorkstation();
     VaultAccess.UI.renderEscalationLog();
   }
 
@@ -132,7 +145,10 @@ VaultAccess.Workstations = (function () {
   // --------------------------------------------------------------------------
 
   function handleStaffAssistedRecovery(acctNumber) {
-    const acct = VaultAccess.Config.BANK_ACCOUNTS[acctNumber];
+    const acct = (VaultAccess.Banking && VaultAccess.Banking.getAccount)
+      ? VaultAccess.Banking.getAccount(acctNumber)
+      : VaultAccess.Config.BANK_ACCOUNTS[acctNumber];
+
     if (!acct) {
       alert("Customer account not found.");
       return;
@@ -149,6 +165,10 @@ VaultAccess.Workstations = (function () {
     // Staff-assisted recovery puts account in Active/Verified status
     acct.status = "Active / Verified";
     acct.note = `Staff-assisted verification completed by Branch Supervisor. ${note}`;
+    if (VaultAccess.Config.BANK_ACCOUNTS[acctNumber]) {
+      VaultAccess.Config.BANK_ACCOUNTS[acctNumber].status = "Active / Verified";
+      VaultAccess.Config.BANK_ACCOUNTS[acctNumber].note = acct.note;
+    }
 
     VaultAccess.Audit.logEvent({
       time: VaultAccess.Audit.getTimestamp(),
